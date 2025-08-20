@@ -78,8 +78,9 @@ DEFAULT_CRASH_LIMIT=10
      - `BigQuery Job User`
    - Download JSON key file
 
-### Register with Claude Code
+### Register with AI Agents
 
+#### Claude Code
 ```bash
 # Register the MCP server
 claude mcp add crashlytics -- node /path/to/mcp-crashlytics-server/dist/index.js
@@ -87,6 +88,50 @@ claude mcp add crashlytics -- node /path/to/mcp-crashlytics-server/dist/index.js
 # Verify it's working
 claude mcp list
 ```
+
+#### Cursor
+Add to your `.cursorrules` or cursor settings:
+```json
+{
+  "mcpServers": {
+    "crashlytics": {
+      "command": "node",
+      "args": ["/path/to/mcp-crashlytics-server/dist/index.js"],
+      "env": {
+        "GOOGLE_SERVICE_ACCOUNT_KEY": "/path/to/your-service-account.json",
+        "BIGQUERY_PROJECT_ID": "your-firebase-project-id",
+        "BIGQUERY_DATASET_ID": "firebase_crashlytics"
+      }
+    }
+  }
+}
+```
+
+#### Windsurf
+Add to your Windsurf settings or `.windsurfrules`:
+```json
+{
+  "mcp": {
+    "servers": {
+      "crashlytics": {
+        "command": "node",
+        "args": ["/path/to/mcp-crashlytics-server/dist/index.js"],
+        "env": {
+          "GOOGLE_SERVICE_ACCOUNT_KEY": "/path/to/your-service-account.json",
+          "BIGQUERY_PROJECT_ID": "your-firebase-project-id", 
+          "BIGQUERY_DATASET_ID": "firebase_crashlytics"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Other MCP-Compatible IDEs
+For other MCP-compatible tools, add this server configuration:
+- **Command**: `node`
+- **Args**: `["/path/to/mcp-crashlytics-server/dist/index.js"]` 
+- **Environment Variables**: Same as above (.env file values)
 
 ## 🛠️ Available Tools
 
