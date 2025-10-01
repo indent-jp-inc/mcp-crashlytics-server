@@ -121,7 +121,7 @@ export class BigQueryClient {
         bundle_id: row.bundle_identifier || 'Unknown',
         exception_type: row.exception_info?.type || row.error_type || row.issue_title || 'Unknown',
         exception_message: row.exception_info?.exception_message || row.issue_subtitle || 'Unknown',
-        stack_trace: JSON.stringify(row.exception_info?.frames || row.exception_info || []),
+        stack_trace: this.extractStackTrace(row),
         is_fatal: row.is_fatal !== undefined ? row.is_fatal : true,
         device_model: row.device?.model || 'Unknown',
         os_version: row.device?.os_version || 'Unknown',
@@ -164,7 +164,7 @@ export class BigQueryClient {
         bundle_id: row.bundle_identifier || 'Unknown',
         exception_type: row.exception_info?.type || row.error_type || row.issue_title || 'Unknown',
         exception_message: row.exception_info?.exception_message || row.issue_subtitle || 'Unknown',
-        stack_trace: JSON.stringify(row.exception_info?.frames || row.exception_info || []),
+        stack_trace: this.extractStackTrace(row),
         is_fatal: row.is_fatal !== undefined ? row.is_fatal : true,
         device_model: row.device?.model || 'Unknown',
         os_version: row.device?.os_version || 'Unknown',
@@ -180,6 +180,40 @@ export class BigQueryClient {
     }
   }
 
+  private extractStackTrace(row: any): string {
+    try {
+      let frames: any[] = [];
+      
+      if (row.exceptions && row.exceptions.length > 0 && row.exceptions[0].frames) {
+        frames = row.exceptions[0].frames;
+      }
+      else if (row.error && row.error.length > 0 && row.error[0].frames) {
+        frames = row.error[0].frames;
+      }
+      else if (row.threads && Array.isArray(row.threads)) {
+        const crashedThread = row.threads.find((thread: any) => thread.crashed === true);
+        if (crashedThread && crashedThread.frames) {
+          frames = crashedThread.frames;
+        }
+      }
+      
+      if (frames.length === 0) {
+        return JSON.stringify([]);
+      }
+      
+      const formattedFrames = frames.map((frame: any) => {
+        const symbol = frame.symbol || 'unknown';
+        const file = frame.file || 'unknown';
+        const line = frame.line || 0;
+        return `at ${symbol} (${file}:${line})`;
+      }).join('\n');
+      
+      return formattedFrames;
+    } catch (error) {
+      console.error('Error extracting stack trace:', error);
+      return JSON.stringify([]);
+    }
+  }
 
   async getCrashStatistics(params: AnalyzeCrashTrendsParams): Promise<any[]> {
     const timeCondition = this.getTimeRangeCondition(params.time_range);
