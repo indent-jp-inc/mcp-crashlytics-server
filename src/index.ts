@@ -16,6 +16,7 @@ import {
   ServerConfig,
   FetchCrashesParams,
   GetCrashDetailsParams,
+  GetCrashDetailsByIssueIdParams,
   AnalyzeCrashTrendsParams,
 } from './types.js';
 
@@ -146,6 +147,21 @@ class CrashlyticsServer {
             },
           },
           {
+            name: 'get_crash_details_by_issue_id',
+            description: 'Get detailed information for a specific crash using Firebase Console issue_id',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_id: {
+                  type: 'string',
+                  description: 'Firebase Console issue ID (32-character hex string from Firebase Console URL)',
+                  minLength: 1,
+                },
+              },
+              required: ['issue_id'],
+            },
+          },
+          {
             name: 'analyze_crash_trends',
             description: 'Analyze crash trends and statistics over time',
             inputSchema: {
@@ -189,6 +205,9 @@ class CrashlyticsServer {
 
           case 'get_crash_details':
             return await this.handleGetCrashDetails(request.params.arguments);
+
+          case 'get_crash_details_by_issue_id':
+            return await this.handleGetCrashDetailsByIssueId(request.params.arguments);
 
           case 'analyze_crash_trends':
             return await this.handleAnalyzeCrashTrends(request.params.arguments);
@@ -302,6 +321,26 @@ class CrashlyticsServer {
     const row = await this.bigQueryClient!.getCrashDetails(params);
     if (!row) {
       throw new McpError(ErrorCode.InvalidRequest, `Crash not found: ${params.crash_id}`);
+    }
+
+    const crashDetails = this.crashProcessor!.processCrashDetails(row);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(crashDetails, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async handleGetCrashDetailsByIssueId(args: any) {
+    const params = GetCrashDetailsByIssueIdParams.parse(args);
+    
+    const row = await this.bigQueryClient!.getCrashDetailsByIssueId(params);
+    if (!row) {
+      throw new McpError(ErrorCode.InvalidRequest, `Crash not found for issue_id: ${params.issue_id}`);
     }
 
     const crashDetails = this.crashProcessor!.processCrashDetails(row);
