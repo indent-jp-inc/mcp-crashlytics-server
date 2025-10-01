@@ -96,27 +96,7 @@ export class BigQueryClient {
 
   async getCrashDetails(params: GetCrashDetailsParams): Promise<BigQueryCrashRow | null> {
     const query = `
-      SELECT 
-        event_id as crash_id,
-        TIMESTAMP_MICROS(event_timestamp) as timestamp,
-        event_name,
-        platform,
-        app_version,
-        bundle_id,
-        crash_info.exception_type as exception_type,
-        crash_info.exception_message as exception_message,
-        crash_info.stack_trace as stack_trace,
-        crash_info.is_fatal as is_fatal,
-        device_info.device_model as device_model,
-        device_info.os_version as os_version,
-        device_info.memory_available as memory_available,
-        device_info.storage_available as storage_available,
-        device_info.orientation as orientation,
-        device_info.battery_level as battery_level,
-        user_id,
-        session_id,
-        custom_keys,
-        breadcrumbs
+      SELECT *
       FROM \`${this.config.projectId}.${this.config.datasetId}.*\`
       WHERE event_id = '${params.crash_id}'
       LIMIT 1
@@ -128,7 +108,29 @@ export class BigQueryClient {
         location: 'US',
       });
 
-      return rows.length > 0 ? rows[0] as BigQueryCrashRow : null;
+      if (rows.length === 0) return null;
+
+      const row = rows[0];
+      return {
+        crash_id: row.event_id || params.crash_id,
+        timestamp: row.event_timestamp || new Date().toISOString(),
+        event_name: row.event_name || 'crash',
+        platform: row.platform || 'Unknown',
+        app_version: row.application?.display_version || row.app_version || 'Unknown',
+        bundle_id: row.bundle_identifier || 'Unknown',
+        exception_type: row.exception_info?.type || row.error_type || row.issue_title || 'Unknown',
+        exception_message: row.exception_info?.exception_message || row.issue_subtitle || 'Unknown',
+        stack_trace: JSON.stringify(row.exception_info?.frames || row.exception_info || []),
+        is_fatal: row.is_fatal !== undefined ? row.is_fatal : true,
+        device_model: row.device?.model || 'Unknown',
+        os_version: row.device?.os_version || 'Unknown',
+        memory_available: BigInt(row.device?.ram_mb ? row.device.ram_mb * 1024 * 1024 : 0),
+        storage_available: BigInt(row.device?.disk_mb ? row.device.disk_mb * 1024 * 1024 : 0),
+        user_id: row.user_id || '',
+        session_id: row.session_id || '',
+        custom_keys: JSON.stringify(row.custom_keys || {}),
+        breadcrumbs: JSON.stringify(row.breadcrumbs || [])
+      } as BigQueryCrashRow;
     } catch (error) {
       throw new Error(`BigQuery query failed: ${error}`);
     }
@@ -143,9 +145,9 @@ export class BigQueryClient {
         ${groupByColumn} as group_key,
         COUNT(*) as crash_count,
         COUNT(DISTINCT user_id) as affected_users,
-        DATE(TIMESTAMP_MICROS(event_timestamp)) as crash_date
+        DATE(event_timestamp) as crash_date
       FROM \`${this.config.projectId}.${this.config.datasetId}.*\`
-      WHERE event_name = 'crash'
+      WHERE 1=1
         ${timeCondition}
       GROUP BY group_key, crash_date
       ORDER BY crash_date DESC, crash_count DESC
@@ -169,8 +171,8 @@ export class BigQueryClient {
     const query = `
       WITH daily_stats AS (
         SELECT 
-          DATE(TIMESTAMP_MICROS(event_timestamp)) as date,
-          COUNT(DISTINCT CASE WHEN event_name = 'crash' THEN user_id END) as crashed_users,
+          DATE(event_timestamp) as date,
+          COUNT(DISTINCT user_id) as crashed_users,
           COUNT(DISTINCT user_id) as total_users
         FROM \`${this.config.projectId}.${this.config.datasetId}.*\`
         WHERE 1=1 ${timeCondition}
