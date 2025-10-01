@@ -137,12 +137,14 @@ export class BigQueryClient {
     }
   }
 
-  async getCrashDetailsByIssueId(params: GetCrashDetailsByIssueIdParams): Promise<BigQueryCrashRow | null> {
+  async getCrashDetailsByIssueId(params: GetCrashDetailsByIssueIdParams): Promise<BigQueryCrashRow[]> {
+    const limit = params.limit || 10;
     const query = `
       SELECT *
       FROM \`${this.config.projectId}.${this.config.datasetId}.*\`
       WHERE issue_id = '${params.issue_id}'
-      LIMIT 1
+      ORDER BY event_timestamp DESC
+      LIMIT ${limit}
     `;
 
     try {
@@ -151,10 +153,9 @@ export class BigQueryClient {
         location: 'US',
       });
 
-      if (rows.length === 0) return null;
+      if (rows.length === 0) return [];
 
-      const row = rows[0];
-      return {
+      return rows.map(row => ({
         crash_id: row.event_id || row.issue_id,
         timestamp: row.event_timestamp || new Date().toISOString(),
         event_name: row.event_name || 'crash',
@@ -173,7 +174,7 @@ export class BigQueryClient {
         session_id: row.session_id || '',
         custom_keys: JSON.stringify(row.custom_keys || {}),
         breadcrumbs: JSON.stringify(row.breadcrumbs || [])
-      } as BigQueryCrashRow;
+      } as BigQueryCrashRow));
     } catch (error) {
       throw new Error(`BigQuery query failed: ${error}`);
     }

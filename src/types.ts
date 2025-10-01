@@ -111,6 +111,7 @@ export const GetCrashDetailsParams = z.object({
 
 export const GetCrashDetailsByIssueIdParams = z.object({
   issue_id: z.string().min(1),
+  limit: z.number().int().positive().max(100).optional().default(10),
 });
 
 export const AnalyzeCrashTrendsParams = z.object({

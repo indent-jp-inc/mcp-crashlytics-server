@@ -148,7 +148,7 @@ class CrashlyticsServer {
           },
           {
             name: 'get_crash_details_by_issue_id',
-            description: 'Get detailed information for a specific crash using Firebase Console issue_id',
+            description: 'Get detailed information for crashes associated with a Firebase Console issue_id. Returns multiple events (default 10, max 100) to enable both lightweight and detailed analysis.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -156,6 +156,12 @@ class CrashlyticsServer {
                   type: 'string',
                   description: 'Firebase Console issue ID (32-character hex string from Firebase Console URL)',
                   minLength: 1,
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Number of events to retrieve (default: 10, max: 100)',
+                  minimum: 1,
+                  maximum: 100,
                 },
               },
               required: ['issue_id'],
@@ -338,18 +344,22 @@ class CrashlyticsServer {
   private async handleGetCrashDetailsByIssueId(args: any) {
     const params = GetCrashDetailsByIssueIdParams.parse(args);
     
-    const row = await this.bigQueryClient!.getCrashDetailsByIssueId(params);
-    if (!row) {
-      throw new McpError(ErrorCode.InvalidRequest, `Crash not found for issue_id: ${params.issue_id}`);
+    const rows = await this.bigQueryClient!.getCrashDetailsByIssueId(params);
+    if (rows.length === 0) {
+      throw new McpError(ErrorCode.InvalidRequest, `No crashes found for issue_id: ${params.issue_id}`);
     }
 
-    const crashDetails = this.crashProcessor!.processCrashDetails(row);
+    const crashDetails = rows.map(row => this.crashProcessor!.processCrashDetails(row));
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(crashDetails, null, 2),
+          text: JSON.stringify({
+            issue_id: params.issue_id,
+            total_events_retrieved: crashDetails.length,
+            events: crashDetails
+          }, null, 2),
         },
       ],
     };
