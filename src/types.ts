@@ -109,6 +109,11 @@ export const GetCrashDetailsParams = z.object({
   crash_id: z.string().min(1),
 });
 
+export const GetCrashDetailsByIssueIdParams = z.object({
+  issue_id: z.string().min(1),
+  limit: z.number().int().positive().max(100).optional().default(10),
+});
+
 export const AnalyzeCrashTrendsParams = z.object({
   time_range: TimeRange,
   group_by: GroupBy.optional(),
@@ -116,6 +121,7 @@ export const AnalyzeCrashTrendsParams = z.object({
 
 export type FetchCrashesParams = z.infer<typeof FetchCrashesParams>;
 export type GetCrashDetailsParams = z.infer<typeof GetCrashDetailsParams>;
+export type GetCrashDetailsByIssueIdParams = z.infer<typeof GetCrashDetailsByIssueIdParams>;
 export type AnalyzeCrashTrendsParams = z.infer<typeof AnalyzeCrashTrendsParams>;
 
 export interface BigQueryCrashRow {

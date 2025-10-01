@@ -12,6 +12,7 @@ A clean, simple **Model Context Protocol (MCP)** server that integrates Firebase
 - 📱 **App Discovery**: Automatically discover all apps in your Firebase project
 - 💥 **Fatal Crash Analysis**: Get detailed fatal crashes with stack traces
 - 🐛 **ANR Issue Detection**: Analyze Application Not Responding issues
+- 🔗 **Firebase Console Integration**: Retrieve crash details directly using Firebase Console issue IDs
 - 🔧 **Easy Setup**: Simple configuration with environment variables
 - 🤖 **AI-Optimized**: Structured output perfect for AI analysis and debugging
 
@@ -167,6 +168,34 @@ For other MCP-compatible tools, add this server configuration:
 "Show me ANR issues for com.example.myapp, limit to 5"
 ```
 
+### 4. `get_crash_details_by_issue_id`
+**Get detailed crash information** using Firebase Console issue ID. This tool retrieves multiple events associated with the same issue, enabling both lightweight analysis and detailed investigation.
+
+- **Parameters**:
+  - `issue_id` (required): Firebase Console issue ID (32-character hex string)
+  - `limit` (optional): Number of events to retrieve (1-100, default: 10)
+
+**Extracting issue_id from Firebase Console URL:**
+
+Firebase Console URLs contain the `issue_id` in the path:
+```
+https://console.firebase.google.com/.../issues/addd0a8117be12c0631a2140b751167f?...
+                                           ↑
+                                      issue_id (32-char hex)
+```
+
+**Use Cases:**
+- 📊 **Lightweight Analysis**: Default 10 events for quick overview
+- 🔍 **Detailed Investigation**: Up to 100 events for pattern analysis
+- 📈 **Trend Analysis**: Compare crash occurrences over time
+- 🎯 **Root Cause**: Analyze breadcrumbs and custom keys across multiple events
+
+```javascript
+// Usage in Claude Code/Cursor
+"Get crash details for issue addd0a8117be12c0631a2140b751167f"
+"Show me 50 events for issue addd0a8117be12c0631a2140b751167f"
+```
+
 ## 📋 Example Usage
 
 Once set up, you can ask Claude Code natural questions like:
@@ -182,6 +211,11 @@ Once set up, you can ask Claude Code natural questions like:
 # Analyze ANR issues  
 "What ANR issues does my app have?"
 "Show ANR problems for com.mycompany.myapp from the last week"
+
+# Get crash details from Firebase Console URL
+"Analyze this crash: https://console.firebase.google.com/.../issues/addd0a8117be12c0631a2140b751167f"
+"Get detailed events for issue addd0a8117be12c0631a2140b751167f, show 50 events"
+"What's the pattern in crash addd0a8117be12c0631a2140b751167f?"
 ```
 
 ## 🏗️ Project Structure

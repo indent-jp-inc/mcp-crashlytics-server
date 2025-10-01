@@ -3,7 +3,8 @@ import {
   ServerConfig, 
   BigQueryCrashRow, 
   FetchCrashesParams, 
-  GetCrashDetailsParams, 
+  GetCrashDetailsParams,
+  GetCrashDetailsByIssueIdParams,
   AnalyzeCrashTrendsParams,
   TimeRange,
   Platform 
@@ -135,6 +136,50 @@ export class BigQueryClient {
       throw new Error(`BigQuery query failed: ${error}`);
     }
   }
+
+  async getCrashDetailsByIssueId(params: GetCrashDetailsByIssueIdParams): Promise<BigQueryCrashRow[]> {
+    const limit = params.limit || 10;
+    const query = `
+      SELECT *
+      FROM \`${this.config.projectId}.${this.config.datasetId}.*\`
+      WHERE issue_id = '${params.issue_id}'
+      ORDER BY event_timestamp DESC
+      LIMIT ${limit}
+    `;
+
+    try {
+      const [rows] = await this.bigquery.query({
+        query,
+        location: 'US',
+      });
+
+      if (rows.length === 0) return [];
+
+      return rows.map(row => ({
+        crash_id: row.event_id || row.issue_id,
+        timestamp: row.event_timestamp || new Date().toISOString(),
+        event_name: row.event_name || 'crash',
+        platform: row.platform || 'Unknown',
+        app_version: row.application?.display_version || row.app_version || 'Unknown',
+        bundle_id: row.bundle_identifier || 'Unknown',
+        exception_type: row.exception_info?.type || row.error_type || row.issue_title || 'Unknown',
+        exception_message: row.exception_info?.exception_message || row.issue_subtitle || 'Unknown',
+        stack_trace: JSON.stringify(row.exception_info?.frames || row.exception_info || []),
+        is_fatal: row.is_fatal !== undefined ? row.is_fatal : true,
+        device_model: row.device?.model || 'Unknown',
+        os_version: row.device?.os_version || 'Unknown',
+        memory_available: BigInt(row.device?.ram_mb ? row.device.ram_mb * 1024 * 1024 : 0),
+        storage_available: BigInt(row.device?.disk_mb ? row.device.disk_mb * 1024 * 1024 : 0),
+        user_id: row.user_id || '',
+        session_id: row.session_id || '',
+        custom_keys: JSON.stringify(row.custom_keys || {}),
+        breadcrumbs: JSON.stringify(row.breadcrumbs || [])
+      } as BigQueryCrashRow));
+    } catch (error) {
+      throw new Error(`BigQuery query failed: ${error}`);
+    }
+  }
+
 
   async getCrashStatistics(params: AnalyzeCrashTrendsParams): Promise<any[]> {
     const timeCondition = this.getTimeRangeCondition(params.time_range);
